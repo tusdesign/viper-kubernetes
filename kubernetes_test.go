@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neermitt/viper-kubernetes"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	kubernetes "github.com/tusdesign/viper-kubernetes"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )

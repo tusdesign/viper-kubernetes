@@ -1,4 +1,4 @@
-module github.com/neermitt/viper-kubernetes
+module github.com/tusdesign/viper-kubernetes
 
 go 1.12
 

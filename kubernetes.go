@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var defaultNamespace1 = "default"
+var defaultNamespace = "default"
 
 type ConfigMapConfigManager struct {
 	Client    kubernetes.Interface
@@ -163,8 +163,22 @@ func NewConfigMapConfigManager(configPath string, namespace string) (ConfigManag
 	if err != nil {
 		return nil, err
 	}
+
 	if namespace == "" {
-		namespace = defaultNamespace1
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		// if you want to change the loading rules (which files in which order), you can do so here
+		if configPath != "" {
+			loadingRules.Precedence = append([]string{configPath}, loadingRules.Precedence...)
+		}
+
+		configOverrides := &clientcmd.ConfigOverrides{}
+		// if you want to change override values or bind them to flags, there are methods to help you
+
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+		namespace, _, err = kubeConfig.Namespace()
+		if err != nil {
+			namespace = defaultNamespace
+		}
 	}
 	return &ConfigMapConfigManager{
 		Client:    clientset,

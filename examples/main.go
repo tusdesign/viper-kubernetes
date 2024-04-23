@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	_ "github.com/neermitt/viper-kubernetes"
 	"github.com/spf13/viper"
+	_ "github.com/tusdesign/viper-kubernetes"
 )
 
 func main() {
