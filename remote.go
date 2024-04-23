@@ -94,9 +94,9 @@ func getConfigManager(rp viper.RemoteProvider) (ConfigManager, error) {
 
 	switch rp.Provider() {
 	case "configmap":
-		cm, err = NewConfigMapConfigManager(rp.SecretKeyring())
+		cm, err = NewConfigMapConfigManager(rp.SecretKeyring(), rp.Endpoint())
 	default:
-		cm, err = NewSecretConfigManager(rp.SecretKeyring())
+		cm, err = NewSecretConfigManager(rp.SecretKeyring(), rp.Endpoint())
 	}
 	if err != nil {
 		return nil, err

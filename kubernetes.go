@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -11,15 +12,20 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var defaultNamespace = "default"
+var defaultNamespace1 = "default"
 
 type ConfigMapConfigManager struct {
-	Client kubernetes.Interface
+	Client    kubernetes.Interface
+	Namespace string
 }
 
 func (kcm ConfigMapConfigManager) Get(key string) ([]byte, error) {
-	ns, name, configKey := parsePath(key)
-	configMap, err := kcm.Client.CoreV1().ConfigMaps(ns).Get(name, metav1.GetOptions{})
+	name, configKey, err := parsePath(key)
+	if err != nil {
+		return nil, err
+	}
+
+	configMap, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -27,13 +33,17 @@ func (kcm ConfigMapConfigManager) Get(key string) ([]byte, error) {
 }
 
 func (kcm ConfigMapConfigManager) Watch(key string, stop chan bool) <-chan *Response {
-	ns, name, configKey := parsePath(key)
-	resp := make(chan *Response, 0)
+	name, configKey, err := parsePath(key)
+	if err != nil {
+		return nil
+	}
+
+	resp := make(chan *Response)
 
 	go func(configMapName string, key string, stop <-chan bool, resp chan *Response) {
 		defer close(resp)
 
-		watch, err := kcm.Client.CoreV1().ConfigMaps(ns).Watch(metav1.ListOptions{})
+		watch, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
 			resp <- &Response{Error: err}
 		}
@@ -69,16 +79,20 @@ func extractKeyFromConfigMap(configMap *v1.ConfigMap, key string) ([]byte, error
 		return val, nil
 	}
 
-	return nil, errors.New("Missing file in config map")
+	return nil, errors.New("missing file in config map")
 }
 
 type SecretConfigManager struct {
-	Client kubernetes.Interface
+	Client    kubernetes.Interface
+	Namespace string
 }
 
 func (scm SecretConfigManager) Get(key string) ([]byte, error) {
-	ns, name, configKey := parsePath(key)
-	secret, err := scm.Client.CoreV1().Secrets(ns).Get(name, metav1.GetOptions{})
+	name, configKey, err := parsePath(key)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := scm.Client.CoreV1().Secrets(scm.Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -86,17 +100,21 @@ func (scm SecretConfigManager) Get(key string) ([]byte, error) {
 		return []byte(val), nil
 	}
 
-	return nil, errors.New("Missing file in secret")
+	return nil, errors.New("missing file in secret")
 }
 
 func (scm SecretConfigManager) Watch(key string, stop chan bool) <-chan *Response {
-	ns, name, configKey := parsePath(key)
-	resp := make(chan *Response, 0)
+	name, configKey, err := parsePath(key)
+	if err != nil {
+		return nil
+	}
+
+	resp := make(chan *Response)
 
 	go func(secretName string, key string, stop <-chan bool, resp chan *Response) {
 		defer close(resp)
 
-		watch, err := scm.Client.CoreV1().Secrets(ns).Watch(metav1.ListOptions{})
+		watch, err := scm.Client.CoreV1().Secrets(scm.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
 			resp <- &Response{Error: err}
 		}
@@ -112,7 +130,7 @@ func (scm SecretConfigManager) Watch(key string, stop chan bool) <-chan *Respons
 					if val, ok := secret.Data[configKey]; ok {
 						resp <- &Response{Value: val}
 					} else {
-						resp <- &Response{Error: errors.New("Missing file in secret")}
+						resp <- &Response{Error: errors.New("missing file in secret")}
 					}
 				}
 			}
@@ -123,23 +141,19 @@ func (scm SecretConfigManager) Watch(key string, stop chan bool) <-chan *Respons
 	return resp
 }
 
-func parsePath(path string) (ns string, name string, key string) {
+func parsePath(path string) (name string, key string, err error) {
 	values := strings.Split(path, "/")
 	switch len(values) {
-	case 3:
-		ns = values[0]
-		name = values[1]
-		key = values[2]
 	case 2:
-		ns = defaultNamespace
 		name = values[0]
 		key = values[1]
 	default:
+		err = fmt.Errorf("unstructual path, path should be cm(secrete)name/key")
 	}
 	return
 }
 
-func NewConfigMapConfigManager(configPath string) (ConfigManager, error) {
+func NewConfigMapConfigManager(configPath string, namespace string) (ConfigManager, error) {
 	config, err := GetConfigFromReader(configPath)
 	if err != nil {
 		return nil, err
@@ -149,10 +163,16 @@ func NewConfigMapConfigManager(configPath string) (ConfigManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigMapConfigManager{Client: clientset}, nil
+	if namespace == "" {
+		namespace = defaultNamespace1
+	}
+	return &ConfigMapConfigManager{
+		Client:    clientset,
+		Namespace: namespace,
+	}, nil
 }
 
-func NewSecretConfigManager(configPath string) (ConfigManager, error) {
+func NewSecretConfigManager(configPath string, namespace string) (ConfigManager, error) {
 	config, err := GetConfigFromReader(configPath)
 	if err != nil {
 		return nil, err
@@ -162,7 +182,10 @@ func NewSecretConfigManager(configPath string) (ConfigManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SecretConfigManager{Client: clientset}, nil
+	return &SecretConfigManager{
+		Client:    clientset,
+		Namespace: namespace,
+	}, nil
 }
 
 func GetConfigFromReader(configPath string) (*rest.Config, error) {
@@ -177,9 +200,5 @@ func GetConfigFromReader(configPath string) (*rest.Config, error) {
 
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 
-	ns, _, err := kubeConfig.Namespace()
-	if err == nil {
-		defaultNamespace = ns
-	}
 	return kubeConfig.ClientConfig()
 }

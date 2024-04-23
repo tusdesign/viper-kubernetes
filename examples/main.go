@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,12 +12,14 @@ import (
 func main() {
 	v := viper.New()
 
-	err := v.AddRemoteProvider("secret", "dummy", "test/config.yaml")
+	err := v.AddRemoteProvider("configmap", "default", "lemon/lemon.toml")
 	if err != nil {
 		log.Printf("Failed to add remote provider %v", err)
 	}
-	v.SetConfigType("yaml")
+	v.SetConfigType("toml")
 	err = v.ReadRemoteConfig()
+	p := v.Get("System.Listen")
+	fmt.Println(p)
 	if err != nil {
 		log.Printf("Failed to read remote config %v", err)
 	}
