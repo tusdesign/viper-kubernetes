@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,7 +26,7 @@ func (kcm ConfigMapConfigManager) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	configMap, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Get(name, metav1.GetOptions{})
+	configMap, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (kcm ConfigMapConfigManager) Watch(key string, stop chan bool) <-chan *Resp
 	go func(configMapName string, key string, stop <-chan bool, resp chan *Response) {
 		defer close(resp)
 
-		watch, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Watch(metav1.ListOptions{})
+		watch, err := kcm.Client.CoreV1().ConfigMaps(kcm.Namespace).Watch(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			resp <- &Response{Error: err}
 		}
@@ -92,7 +93,7 @@ func (scm SecretConfigManager) Get(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	secret, err := scm.Client.CoreV1().Secrets(scm.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := scm.Client.CoreV1().Secrets(scm.Namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func (scm SecretConfigManager) Watch(key string, stop chan bool) <-chan *Respons
 	go func(secretName string, key string, stop <-chan bool, resp chan *Response) {
 		defer close(resp)
 
-		watch, err := scm.Client.CoreV1().Secrets(scm.Namespace).Watch(metav1.ListOptions{})
+		watch, err := scm.Client.CoreV1().Secrets(scm.Namespace).Watch(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			resp <- &Response{Error: err}
 		}

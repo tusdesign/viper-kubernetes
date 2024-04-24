@@ -1,6 +1,7 @@
 package kubernetes_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func TestKubernetesConfigManager_Watch(t *testing.T) {
 	resp := kcm.Watch("testConfigMap/Key1", stopChan)
 	time.Sleep(time.Second)
 	updatedConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "testConfigMap", Namespace: "default"}, BinaryData: map[string][]byte{"Key1": []byte("Value2"), "Key2": []byte("Value2")}}
-	_, err := clientset.CoreV1().ConfigMaps("default").Update(updatedConfigMap)
+	_, err := clientset.CoreV1().ConfigMaps("default").Update(context.Background(), updatedConfigMap, metav1.UpdateOptions{})
 	require.NoError(t, err)
 	response := <-resp
 
