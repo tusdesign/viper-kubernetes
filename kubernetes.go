@@ -165,20 +165,7 @@ func NewConfigMapConfigManager(configPath string, namespace string) (ConfigManag
 	}
 
 	if namespace == "" {
-		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-		// if you want to change the loading rules (which files in which order), you can do so here
-		if configPath != "" {
-			loadingRules.Precedence = append([]string{configPath}, loadingRules.Precedence...)
-		}
-
-		configOverrides := &clientcmd.ConfigOverrides{}
-		// if you want to change override values or bind them to flags, there are methods to help you
-
-		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-		namespace, _, err = kubeConfig.Namespace()
-		if err != nil {
-			namespace = defaultNamespace
-		}
+		namespace = defaultNamespace
 	}
 	return &ConfigMapConfigManager{
 		Client:    clientset,
